@@ -43,3 +43,4 @@ def export_data(dt):
 
 def get_json_path(doctype):
 	return os.path.join(os.path.dirname(__file__), "demo_docs", doctype+".json")
+

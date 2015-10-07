@@ -89,10 +89,11 @@ def make_items():
 	import_data("Workstation")
 	import_data("Operation")
 	import_data("BOM", submit=True)
+	fix_attachments()
 
 def make_price_lists():
 	import_data("Currency Exchange")
-	import_data("Item Price", overwrite=True)
+	add_item_price()
 
 def make_customers_suppliers_contacts():
 	import_data(["Account", "Customer", "Supplier", "Contact", "Address", "Lead"])
@@ -139,3 +140,65 @@ def import_data(dt, submit=False, overwrite=False):
 
 	for doctype in dt:
 		import_doc(get_json_path(doctype), submit=submit, overwrite=overwrite)
+
+def add_item_price():
+	frappe.db.sql("delete from `tabItem Price`")
+
+	standard_selling = {
+		"Base Bearing Plate": 28,
+		"Base Plate": 21,
+		"Bearing Assembly": 300,
+		"Bearing Block": 14,
+		"Bearing Collar": 103.6,
+		"Bearing Pipe": 63,
+		"Blade Rib": 46.2,
+		"Disc Collars": 42,
+		"External Disc": 56,
+		"Internal Disc": 70,
+		"Shaft": 340,
+		"Stand": 400,
+		"Upper Bearing Plate": 300,
+		"Wind Mill A Series": 320,
+		"Wind Mill A Series with Spare Bearing": 750,
+		"Wind MIll C Series": 400,
+		"Wind Turbine": 400,
+		"Wing Sheet": 30.8
+	}
+
+	standard_buying = {
+		"Base Bearing Plate": 20,
+		"Base Plate": 28,
+		"Base Plate Un Painted": 16,
+		"Bearing Block": 13,
+		"Bearing Collar": 96.4,
+		"Bearing Pipe": 55,
+		"Blade Rib": 38,
+		"Disc Collars": 34,
+		"External Disc": 50,
+		"Internal Disc": 60,
+		"Shaft": 250,
+		"Stand": 300,
+		"Upper Bearing Plate": 200,
+		"Wing Sheet": 25
+	}
+
+	for price_list in ("standard_buying", "standard_selling"):
+		for item, rate in locals().get(price_list).iteritems():
+			frappe.get_doc({
+				"doctype": "Item Price",
+				"price_list": price_list.replace("_", " ").title(),
+				"item_code": item,
+				"selling": 1 if price_list=="standard_selling" else 0,
+				"buying": 1 if price_list=="standard_buying" else 0,
+				"price_list_rate": rate,
+				"currency": "USD"
+			}).insert()
+
+def fix_attachments():
+	"""Create attachment objects for image fields"""
+	for item in frappe.get_all("Item", fields=("name", "website_image")):
+		if item.website_image:
+			item_doc = frappe.get_doc("Item", item.name)
+			item_doc.make_thumbnail()
+			item_doc.db_set("thumbnail", item_doc.thumbnail)
+

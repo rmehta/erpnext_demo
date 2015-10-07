@@ -10,7 +10,7 @@ from frappe.utils import cstr
 from erpnext_demo import settings
 
 def run_manufacturing(current_date):
-	from erpnext.projects.doctype.time_log.time_log import NotSubmittedError
+	from erpnext.projects.doctype.time_log.time_log import NotSubmittedError, OverlapError
 
 	ppt = frappe.get_doc("Production Planning Tool", "Production Planning Tool")
 	ppt.company = settings.company
@@ -47,9 +47,14 @@ def run_manufacturing(current_date):
 
 	# submit time logs
 	for time_log in frappe.get_all("Time Log", ["name"], {"docstatus": 0,
-		"for_manufacturing": 1, "to_time": ("<", current_date)}):
+		"production_order": ("!=", ""), "to_time": ("<", current_date)}):
 		time_log = frappe.get_doc("Time Log", time_log.name)
-		time_log.submit()
+		try:
+			time_log.submit()
+			frappe.db.commit()
+			print time_log.name
+		except OverlapError:
+			pass
 
 def make_stock_entry_from_pro(pro_id, purpose, current_date):
 	from erpnext.manufacturing.doctype.production_order.production_order import make_stock_entry
